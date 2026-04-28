@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Transform Paths — Mini Paths of Payson</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --ink:#1e1812;--soft:#6b5d4f;--faint:#b0a090;
+  --paper:#f5f0e8;--paper2:#ede6d8;--paper3:#d8cfc0;
+  --orange:#c4622a;--green:#4a8a5a;--red:#b03030;--blue:#4A8FA8;
+  --mono:'Courier New',Courier,monospace;
+  --sans:'Inter','Helvetica Neue',Arial,sans-serif;
+}
+html,body{height:100%;background:var(--ink);color:var(--paper);font-family:var(--sans);font-size:13px;overflow:hidden;}
+#app{display:grid;grid-template-rows:48px 1fr;height:100vh;}
+.topbar{background:#111;border-bottom:2px solid var(--orange);padding:0 20px;display:flex;align-items:center;gap:16px;}
+.topbar__title{font-size:13px;font-weight:600;}
+.topbar__sub{font-size:10px;color:rgba(245,240,232,.35);font-family:var(--mono);}
+.topbar__right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:#666;}
+.conn-dot.ok{background:var(--green);}
+.conn-dot.err{background:var(--red);}
+.conn-label{font-size:10px;color:rgba(245,240,232,.35);font-family:var(--mono);}
+.topbar__back{font-size:10px;color:rgba(245,240,232,.5);padding:4px 12px;border:1px solid rgba(245,240,232,.15);border-radius:2px;cursor:pointer;background:none;}
+.topbar__back:hover{color:var(--paper);}
+
+.layout{display:grid;grid-template-columns:320px 1fr;height:100%;}
+
+/* Panel */
+.panel{background:#1a1510;border-right:1px solid rgba(245,240,232,.08);overflow-y:auto;display:flex;flex-direction:column;}
+.section{padding:14px 16px;border-bottom:1px solid rgba(245,240,232,.07);}
+.section__label{font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:rgba(245,240,232,.3);font-family:var(--mono);margin-bottom:10px;}
+.hint{font-size:11px;color:rgba(245,240,232,.4);line-height:1.6;}
+.hint strong{color:rgba(245,240,232,.75);}
+
+/* Bounds input grid */
+.bounds-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.bounds-field{display:flex;flex-direction:column;gap:3px;}
+.bounds-field label{font-size:9px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;color:rgba(245,240,232,.35);}
+.bounds-field input{background:rgba(0,0,0,.3);border:1px solid rgba(245,240,232,.1);border-radius:2px;color:var(--paper);font-size:10.5px;font-family:var(--mono);padding:5px 7px;width:100%;}
+.bounds-field input:focus{outline:none;border-color:var(--orange);}
+
+/* Path list */
+.path-list{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;}
+.path-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:2px;background:rgba(245,240,232,.04);border:1px solid rgba(245,240,232,.07);font-size:10.5px;}
+.path-item__dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.path-item__label{flex:1;color:rgba(245,240,232,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.path-item__type{font-size:9px;font-family:var(--mono);color:rgba(245,240,232,.3);flex-shrink:0;}
+.path-item.no-geo{opacity:.4;}
+
+/* Stats */
+.stat-row{display:flex;justify-content:space-between;font-size:11px;color:rgba(245,240,232,.5);padding:3px 0;}
+.stat-row strong{color:var(--orange);font-family:var(--mono);}
+
+/* Buttons */
+.btn{padding:9px 16px;border-radius:3px;font-size:11px;font-weight:500;cursor:pointer;border:none;letter-spacing:.04em;transition:all .12s;font-family:var(--sans);width:100%;display:block;margin-top:6px;}
+.btn--preview{background:rgba(74,143,168,.8);color:#fff;}
+.btn--preview:hover{background:var(--blue);}
+.btn--commit{background:var(--green);color:#fff;}
+.btn--commit:hover{opacity:.88;}
+.btn--commit:disabled{opacity:.35;cursor:not-allowed;}
+.btn--ghost{background:rgba(245,240,232,.07);color:rgba(245,240,232,.55);}
+.btn--ghost:hover{background:rgba(245,240,232,.13);}
+
+/* Log */
+.log{font-family:var(--mono);font-size:10px;color:rgba(245,240,232,.5);line-height:1.7;max-height:120px;overflow-y:auto;background:rgba(0,0,0,.3);border:1px solid rgba(245,240,232,.08);border-radius:2px;padding:8px 10px;}
+.log .ok{color:#7ec8a0;}
+.log .warn{color:var(--orange);}
+.log .err{color:#f08080;}
+
+/* Legend */
+.legend{display:flex;flex-direction:column;gap:5px;font-size:10.5px;}
+.legend-item{display:flex;align-items:center;gap:8px;color:rgba(245,240,232,.5);}
+.legend-line{width:24px;height:3px;border-radius:1px;flex-shrink:0;}
+
+/* Move pad */
+.move-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:140px;margin:0 auto;}
+.move-btn{background:rgba(245,240,232,.07);border:1px solid rgba(245,240,232,.12);border-radius:3px;color:rgba(245,240,232,.75);font-size:15px;padding:8px 4px;cursor:pointer;user-select:none;text-align:center;transition:background .1s;}
+.move-btn:hover{background:rgba(245,240,232,.15);color:var(--paper);}
+.move-btn:active{background:var(--orange);border-color:var(--orange);color:#fff;}
+.move-blank{background:none;border:1px solid transparent;}
+.step-row{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:10px;color:rgba(245,240,232,.4);}
+.step-row select{flex:1;background:rgba(0,0,0,.35);border:1px solid rgba(245,240,232,.1);border-radius:2px;color:var(--paper);font-size:10px;padding:3px 6px;font-family:var(--mono);}
+
+/* Map */
+#map{width:100%;height:100%;}
+.leaflet-control-zoom{border:1px solid rgba(245,240,232,.15) !important;border-radius:3px !important;}
+.leaflet-control-zoom a{background:#1a1510 !important;color:var(--paper) !important;border-bottom-color:rgba(245,240,232,.1) !important;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="topbar__title">transform paths</div>
+    <div class="topbar__sub">admin · mini paths of payson</div>
+    <div class="topbar__right">
+      <div class="conn-dot" id="conn-dot"></div>
+      <div class="conn-label" id="conn-label">connecting…</div>
+      <button class="topbar__back" onclick="location.href='index.html'">← map</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+
+      <div class="section">
+        <div class="section__label">how this works</div>
+        <div class="hint">
+          Each drawn coordinate is normalized to its relative position within the <strong>old</strong> scan bounds, then re-projected into the <strong>new</strong> bounds. Preview first — commit only when it looks right. <strong>This edits the database.</strong>
+        </div>
+      </div>
+
+      <!-- OLD BOUNDS -->
+      <div class="section">
+        <div class="section__label">old scan bounds — when paths were drawn</div>
+        <div class="bounds-grid">
+          <div class="bounds-field"><label>North</label><input id="old-north" value="34.2850"></div>
+          <div class="bounds-field"><label>South</label><input id="old-south" value="34.2095"></div>
+          <div class="bounds-field"><label>West</label><input id="old-west" value="-111.3710"></div>
+          <div class="bounds-field"><label>East</label><input id="old-east" value="-111.2580"></div>
+        </div>
+      </div>
+
+      <!-- NEW BOUNDS — move -->
+      <div class="section">
+        <div class="section__label">new bounds — move whole image</div>
+        <div class="move-pad">
+          <div class="move-blank"></div>
+          <div class="move-btn" onmousedown="startMoveNew('up')" onmouseup="stopMove()" onmouseleave="stopMove()">↑</div>
+          <div class="move-blank"></div>
+          <div class="move-btn" onmousedown="startMoveNew('left')" onmouseup="stopMove()" onmouseleave="stopMove()">←</div>
+          <div class="move-blank" style="font-size:9px;color:rgba(245,240,232,.18);font-family:var(--mono);display:flex;align-items:center;justify-content:center;">move</div>
+          <div class="move-btn" onmousedown="startMoveNew('right')" onmouseup="stopMove()" onmouseleave="stopMove()">→</div>
+          <div class="move-blank"></div>
+          <div class="move-btn" onmousedown="startMoveNew('down')" onmouseup="stopMove()" onmouseleave="stopMove()">↓</div>
+          <div class="move-blank"></div>
+        </div>
+        <div class="step-row">
+          <span>step</span>
+          <select id="move-step">
+            <option value="0.0001">fine · 0.0001°</option>
+            <option value="0.0005" selected>medium · 0.0005°</option>
+            <option value="0.002">coarse · 0.002°</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- NEW BOUNDS — scale -->
+      <div class="section">
+        <div class="section__label">new bounds — scale individual edges</div>
+        <div class="bounds-grid">
+          <div class="bounds-field"><label>North</label><input id="new-north" value="34.2909" oninput="syncNewBounds()"></div>
+          <div class="bounds-field"><label>South</label><input id="new-south" value="34.2109" oninput="syncNewBounds()"></div>
+          <div class="bounds-field"><label>West</label><input id="new-west" value="-111.3789" oninput="syncNewBounds()"></div>
+          <div class="bounds-field"><label>East</label><input id="new-east" value="-111.2290" oninput="syncNewBounds()"></div>
+        </div>
+      </div>
+
+      <!-- PATHS -->
+      <div class="section">
+        <div class="section__label">paths found</div>
+        <div class="stat-row"><span>postcard paths</span><strong id="stat-pc">—</strong></div>
+        <div class="stat-row"><span>analog paths</span><strong id="stat-ap">—</strong></div>
+        <div class="stat-row"><span>total to transform</span><strong id="stat-total">—</strong></div>
+        <br>
+        <div class="path-list" id="path-list"><div style="font-size:10.5px;color:rgba(245,240,232,.3)">loading…</div></div>
+      </div>
+
+      <!-- LEGEND -->
+      <div class="section">
+        <div class="section__label">map legend</div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-line" style="background:#888;opacity:.5;border:1px dashed #aaa"></div>original position</div>
+          <div class="legend-item"><div class="legend-line" style="background:#ff6600"></div>transformed position</div>
+        </div>
+      </div>
+
+      <!-- ACTIONS -->
+      <div class="section">
+        <div class="section__label">actions</div>
+        <button class="btn btn--preview" onclick="previewTransform()">Preview transform on map</button>
+        <button class="btn btn--commit" id="btn-commit" onclick="commitTransform()" disabled>Commit to database</button>
+        <button class="btn btn--ghost" onclick="clearPreview()">Clear preview</button>
+      </div>
+
+      <!-- LOG -->
+      <div class="section">
+        <div class="section__label">log</div>
+        <div class="log" id="log"><span class="ok">ready.</span></div>
+      </div>
+
+    </div>
+    <div id="map"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://iylazjxjrxtxyjsugkqw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_9M2OU5Nb1GHIpVQPmWxEBg_7eXbXetA';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const BASEMAP = {
+  north: 34.28708849, south: 34.20762789,
+  west: -111.38514387, east: -111.24696674,
+};
+
+let allPostcards = [], analogPaths = [];
+let previewLayers = [];
+let transformedPostcards = [], transformedAnalog = [];
+
+// ── Map ────────────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: true, minZoom: 12, maxZoom: 17 })
+  .fitBounds([[34.207,-111.385],[34.287,-111.247]], { padding: [20,20] });
+
+L.imageOverlay('src/geobasemap.png',
+  [[BASEMAP.south, BASEMAP.west],[BASEMAP.north, BASEMAP.east]],
+  { opacity: 1 }
+).addTo(map);
+
+// ── Log helper ─────────────────────────────────────────────────────────────
+function log(msg, cls='') {
+  const el = document.getElementById('log');
+  el.innerHTML += `\n<span class="${cls}">${msg}</span>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── Core transform ─────────────────────────────────────────────────────────
+function transformCoord(lat, lng, oldB, newB) {
+  const normLat = (lat - oldB.south) / (oldB.north - oldB.south);
+  const normLng = (lng - oldB.west)  / (oldB.east  - oldB.west);
+  return [
+    newB.south + normLat * (newB.north - newB.south),
+    newB.west  + normLng * (newB.east  - newB.west),
+  ];
+}
+
+function transformGeoJSON(geojson, oldB, newB) {
+  if (!geojson?.coordinates?.length) return null;
+  return {
+    ...geojson,
+    coordinates: geojson.coordinates.map(([lng, lat]) => {
+      const [newLat, newLng] = transformCoord(lat, lng, oldB, newB);
+      return [newLng, newLat];
+    }),
+  };
+}
+
+// ── Move new bounds (preserves size) ──────────────────────────────────────
+let moveInterval = null;
+
+function getNewBounds() {
+  return {
+    north: parseFloat(document.getElementById('new-north').value),
+    south: parseFloat(document.getElementById('new-south').value),
+    west:  parseFloat(document.getElementById('new-west').value),
+    east:  parseFloat(document.getElementById('new-east').value),
+  };
+}
+
+function setNewBounds(b) {
+  document.getElementById('new-north').value = b.north.toFixed(4);
+  document.getElementById('new-south').value = b.south.toFixed(4);
+  document.getElementById('new-west').value  = b.west.toFixed(4);
+  document.getElementById('new-east').value  = b.east.toFixed(4);
+}
+
+function syncNewBounds() { /* inputs update themselves; just a hook if needed */ }
+
+function moveNew(dir) {
+  const step = parseFloat(document.getElementById('move-step').value);
+  const b = getNewBounds();
+  const h = b.north - b.south;
+  const w = b.east  - b.west;
+  if (dir === 'up')    { b.north += step; b.south = b.north - h; }
+  if (dir === 'down')  { b.south -= step; b.north = b.south + h; }
+  if (dir === 'right') { b.east  += step; b.west  = b.east  - w; }
+  if (dir === 'left')  { b.west  -= step; b.east  = b.west  + w; }
+  setNewBounds(b);
+}
+
+function startMoveNew(dir) {
+  moveNew(dir);
+  moveInterval = setInterval(() => moveNew(dir), 80);
+}
+function stopMove() { clearInterval(moveInterval); moveInterval = null; }
+
+// ── Read all bounds ────────────────────────────────────────────────────────
+function getBounds() {
+  const get = id => parseFloat(document.getElementById(id).value);
+  return {
+    old: { north: get('old-north'), south: get('old-south'), west: get('old-west'), east: get('old-east') },
+    new: getNewBounds(),
+  };
+}
+
+// ── Load data ──────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const [{ data: pcData, error: pcErr }, { data: apData, error: apErr }] = await Promise.all([
+      sb.from('postcards').select('id,feeling,artist_name,path_label,path_color,path_geojson').not('path_geojson','is',null),
+      sb.from('analog_paths').select('id,batch_label,path_color,path_geojson'),
+    ]);
+    if (pcErr) throw pcErr;
+    if (apErr) throw apErr;
+
+    allPostcards = (pcData || []).filter(p => p.path_geojson?.coordinates?.length);
+    analogPaths  = (apData  || []).filter(a => a.path_geojson?.coordinates?.length);
+
+    document.getElementById('conn-dot').className = 'conn-dot ok';
+    document.getElementById('conn-label').textContent = 'connected';
+    document.getElementById('stat-pc').textContent    = allPostcards.length;
+    document.getElementById('stat-ap').textContent    = analogPaths.length;
+    document.getElementById('stat-total').textContent = allPostcards.length + analogPaths.length;
+
+    renderPathList();
+    drawOriginalPaths();
+    log(`loaded ${allPostcards.length} postcard paths, ${analogPaths.length} analog paths`, 'ok');
+  } catch(e) {
+    document.getElementById('conn-dot').className = 'conn-dot err';
+    document.getElementById('conn-label').textContent = 'error';
+    log('load error: ' + e.message, 'err');
+  }
+}
+
+// ── Render path list ───────────────────────────────────────────────────────
+function renderPathList() {
+  const el = document.getElementById('path-list');
+  const items = [
+    ...allPostcards.map(p => ({ label: p.feeling || p.artist_name || p.path_label || p.id, color: p.path_color || '#888', type: 'postcard' })),
+    ...analogPaths.map(a  => ({ label: a.batch_label || a.id, color: a.path_color || '#888', type: 'analog' })),
+  ];
+  if (!items.length) { el.innerHTML = '<div style="font-size:10.5px;color:rgba(245,240,232,.3)">no paths with geometry</div>'; return; }
+  el.innerHTML = items.map(it => `
+    <div class="path-item">
+      <div class="path-item__dot" style="background:${it.color}"></div>
+      <div class="path-item__label">${it.label}</div>
+      <div class="path-item__type">${it.type}</div>
+    </div>`).join('');
+}
+
+// ── Draw originals (grey dashed) ───────────────────────────────────────────
+function drawOriginalPaths() {
+  [...allPostcards, ...analogPaths].forEach(p => {
+    const geo = p.path_geojson;
+    if (!geo?.coordinates?.length) return;
+    try {
+      const latLngs = geo.coordinates.map(([lng, lat]) => [lat, lng]);
+      L.polyline(latLngs, { color: '#aaa', weight: 2, opacity: 0.4, dashArray: '4 4' }).addTo(map);
+    } catch(e) {}
+  });
+}
+
+// ── Preview transform ──────────────────────────────────────────────────────
+function previewTransform() {
+  clearPreview();
+  const { old: oldB, new: newB } = getBounds();
+  transformedPostcards = [];
+  transformedAnalog    = [];
+
+  allPostcards.forEach(p => {
+    const newGeo = transformGeoJSON(p.path_geojson, oldB, newB);
+    if (!newGeo) return;
+    transformedPostcards.push({ id: p.id, path_geojson: newGeo });
+    const latLngs = newGeo.coordinates.map(([lng, lat]) => [lat, lng]);
+    const layer = L.polyline(latLngs, { color: p.path_color || '#ff6600', weight: 3, opacity: 0.85 }).addTo(map);
+    previewLayers.push(layer);
+  });
+
+  analogPaths.forEach(a => {
+    const newGeo = transformGeoJSON(a.path_geojson, oldB, newB);
+    if (!newGeo) return;
+    transformedAnalog.push({ id: a.id, path_geojson: newGeo });
+    const latLngs = newGeo.coordinates.map(([lng, lat]) => [lat, lng]);
+    const layer = L.polyline(latLngs, { color: a.path_color || '#ff6600', weight: 3, opacity: 0.85, dashArray: '6 4' }).addTo(map);
+    previewLayers.push(layer);
+  });
+
+  document.getElementById('btn-commit').disabled = false;
+  log(`preview: ${transformedPostcards.length + transformedAnalog.length} paths transformed — orange = new position`, 'ok');
+}
+
+// ── Clear preview layers ───────────────────────────────────────────────────
+function clearPreview() {
+  previewLayers.forEach(l => map.removeLayer(l));
+  previewLayers = [];
+  transformedPostcards = [];
+  transformedAnalog    = [];
+  document.getElementById('btn-commit').disabled = true;
+}
+
+// ── Commit to database ─────────────────────────────────────────────────────
+async function commitTransform() {
+  if (!transformedPostcards.length && !transformedAnalog.length) {
+    log('nothing to commit — run preview first', 'warn'); return;
+  }
+  if (!confirm(`Commit ${transformedPostcards.length + transformedAnalog.length} transformed paths to the database? This will overwrite existing path_geojson values.`)) return;
+
+  const btn = document.getElementById('btn-commit');
+  btn.disabled = true;
+  btn.textContent = 'saving…';
+
+  let ok = 0, fail = 0;
+
+  for (const p of transformedPostcards) {
+    const { error } = await sb.from('postcards').update({ path_geojson: p.path_geojson }).eq('id', p.id);
+    if (error) { log(`✕ postcard ${p.id}: ${error.message}`, 'err'); fail++; }
+    else { ok++; }
+  }
+
+  for (const a of transformedAnalog) {
+    const { error } = await sb.from('analog_paths').update({ path_geojson: a.path_geojson }).eq('id', a.id);
+    if (error) { log(`✕ analog ${a.id}: ${error.message}`, 'err'); fail++; }
+    else { ok++; }
+  }
+
+  log(`done — ${ok} saved, ${fail} failed`, fail > 0 ? 'warn' : 'ok');
+  btn.textContent = 'Commit to database';
+
+  if (fail === 0) {
+    // Reload to reflect new positions
+    clearPreview();
+    await init();
+  } else {
+    btn.disabled = false;
+  }
+}
+
+init();
+</script>
+</body>
+</html>

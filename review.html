@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Admin Review — Mini Paths of Payson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --ink:#1e1812;--soft:#6b5d4f;--faint:#b0a090;
+  --paper:#f5f0e8;--paper2:#ede6d8;--paper3:#d8cfc0;
+  --orange:#c4622a;--green:#4a8a5a;--red:#b03030;--blue:#4A8FA8;
+  --sans:'Inter','Helvetica Neue',Arial,sans-serif;
+  --mono:'Courier New',Courier,monospace;
+}
+html,body{height:100%;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:13px;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}
+input,textarea,select{font-family:inherit;}
+#app{display:grid;grid-template-rows:48px 40px 1fr;height:100vh;}
+.topbar{background:var(--ink);color:var(--paper);padding:0 20px;display:flex;align-items:center;gap:12px;border-bottom:2px solid var(--orange);}
+.topbar__title{font-size:14px;font-weight:600;letter-spacing:0.02em;}
+.topbar__sub{font-size:10px;color:rgba(245,240,232,0.4);font-family:var(--mono);letter-spacing:0.08em;}
+.topbar__right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:#888;flex-shrink:0;}
+.conn-dot.ok{background:var(--green);}
+.conn-dot.err{background:var(--red);}
+.conn-label{font-size:10px;color:rgba(245,240,232,0.4);font-family:var(--mono);}
+.tabs{display:flex;gap:0;background:var(--paper2);border-bottom:1px solid var(--paper3);padding:0 16px;}
+.tab{padding:8px 18px;font-size:11px;font-weight:500;color:var(--soft);letter-spacing:0.04em;border-bottom:2px solid transparent;cursor:pointer;transition:all .12s;}
+.tab:hover{color:var(--ink);}
+.tab.on{color:var(--ink);border-bottom-color:var(--orange);}
+.tab-badge{display:inline-block;background:var(--red);color:#fff;border-radius:10px;font-size:9px;padding:1px 6px;margin-left:5px;font-weight:600;}
+.body{display:grid;grid-template-columns:300px 1fr;overflow:hidden;}
+.list{border-right:1px solid var(--paper3);overflow-y:auto;background:var(--paper2);}
+.list__hdr{padding:10px 14px;border-bottom:1px solid var(--paper3);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--paper2);z-index:2;}
+.list__hdr-label{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--faint);font-family:var(--mono);}
+.list__count{font-size:10px;color:var(--faint);font-family:var(--mono);}
+.list__empty{padding:24px 16px;font-size:12px;color:var(--faint);font-style:italic;}
+.pc-item{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;border-bottom:1px solid rgba(0,0,0,0.04);transition:background .1s;}
+.pc-item:hover{background:rgba(0,0,0,0.03);}
+.pc-item.active{background:var(--ink);color:var(--paper);}
+.pc-item__thumb{width:56px;height:40px;object-fit:cover;border-radius:2px;border:1px solid var(--paper3);background:var(--paper3);flex-shrink:0;}
+.pc-item.active .pc-item__thumb{border-color:rgba(255,255,255,0.2);}
+.pc-item__info{flex:1;min-width:0;}
+.pc-item__id{font-size:9px;color:var(--faint);font-family:var(--mono);}
+.pc-item.active .pc-item__id{color:rgba(245,240,232,0.4);}
+.pc-item__name{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;}
+.pc-item__status{font-size:9px;font-family:var(--mono);padding:2px 6px;border-radius:10px;flex-shrink:0;}
+.status-approved{background:#d6edd9;color:#2a6a35;}
+.status-pending{background:#fce8d0;color:#7a3810;}
+.status-rejected{background:#fde8e8;color:#7a1010;}
+.editor{overflow-y:auto;display:flex;flex-direction:column;}
+.editor__empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--faint);font-style:italic;font-size:13px;}
+.ed-head{padding:14px 20px;border-bottom:1px solid var(--paper3);background:var(--paper2);display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.ed-head__id{font-family:var(--mono);font-size:10px;color:var(--faint);}
+.ed-head__source{font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:10px;background:var(--paper3);color:var(--soft);}
+.ed-head__right{margin-left:auto;display:flex;gap:8px;}
+.btn{padding:6px 14px;font-size:11px;font-weight:500;border-radius:3px;cursor:pointer;letter-spacing:0.04em;transition:all .12s;border:none;}
+.btn--approve{background:var(--green);color:#fff;}
+.btn--approve:hover{opacity:.88;}
+.btn--reject{background:var(--red);color:#fff;}
+.btn--reject:hover{opacity:.88;}
+.btn--save{background:var(--orange);color:#fff;}
+.btn--save:hover{opacity:.88;}
+.btn--save:disabled{opacity:.4;cursor:not-allowed;}
+.btn--ghost{background:var(--paper3);color:var(--ink);}
+.btn--ghost:hover{background:var(--paper);}
+.btn--pending{background:#fce8d0;color:#7a3810;}
+.btn--blue{background:var(--blue);color:#fff;}
+.btn--blue:hover{opacity:.88;}
+.ed-images{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px 20px;border-bottom:1px solid var(--paper3);}
+.ed-img-slot{display:flex;flex-direction:column;gap:6px;}
+.ed-img-label{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--faint);font-family:var(--mono);}
+.ed-img{width:100%;aspect-ratio:1240/875;object-fit:contain;background:var(--paper2);border:1px solid var(--paper3);border-radius:3px;display:block;}
+.ed-no-img{width:100%;aspect-ratio:1240/875;background:var(--paper2);border:1px dashed var(--faint);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--faint);font-style:italic;}
+.ed-fields{padding:16px 20px;display:flex;flex-direction:column;gap:12px;}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field--row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field__label{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--faint);font-family:var(--mono);}
+.field__input{padding:7px 10px;font-size:12px;border:1px solid var(--paper3);background:var(--paper);border-radius:3px;color:var(--ink);width:100%;transition:border-color .12s;}
+.field__input:focus{outline:none;border-color:var(--orange);}
+.field__input.changed{background:#fffbe6;border-color:var(--orange);}
+textarea.field__input{resize:vertical;min-height:72px;line-height:1.6;}
+select.field__input{cursor:pointer;}
+.email-panel{padding:12px;background:var(--paper2);border-radius:3px;border-left:2px solid var(--blue);}
+.email-panel__label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);font-family:var(--mono);margin-bottom:6px;}
+.email-panel__desc{font-size:11.5px;color:var(--soft);margin-bottom:8px;line-height:1.5;}
+.meta-line{font-size:10px;color:var(--faint);font-family:var(--mono);margin-top:4px;line-height:1.8;}
+.ed-save-bar{padding:14px 20px;border-top:1px solid var(--paper3);background:var(--paper2);display:flex;gap:8px;align-items:center;position:sticky;bottom:0;}
+.ed-save-bar__msg{font-size:11px;color:var(--green);font-family:var(--mono);flex:1;}
+.ed-save-bar__err{font-size:11px;color:var(--red);font-family:var(--mono);}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:8px 18px;border-radius:3px;font-size:11px;font-family:var(--mono);z-index:900;letter-spacing:0.06em;display:none;}
+.toast.show{display:block;}
+.loading{padding:24px;text-align:center;color:var(--faint);font-size:12px;font-family:var(--mono);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="topbar__title">admin review</div>
+    <div class="topbar__sub">mini paths of payson</div>
+    <div class="topbar__right">
+      <div class="conn-dot" id="conn-dot"></div>
+      <div class="conn-label" id="conn-label">connecting…</div>
+      <button class="btn btn--ghost" style="font-size:10px;margin-left:8px" onclick="location.href='index.html'">← map</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab on" id="tab-all" onclick="switchTab('all')">all postcards</div>
+    <div class="tab" id="tab-pending" onclick="switchTab('pending')">pending <span class="tab-badge" id="pending-badge">0</span></div>
+    <div class="tab" id="tab-approved" onclick="switchTab('approved')">approved</div>
+  </div>
+  <div class="body">
+    <div class="list" id="list">
+      <div class="list__hdr">
+        <span class="list__hdr-label" id="list-label">loading…</span>
+        <span class="list__count" id="list-count"></span>
+      </div>
+      <div id="list-items"><div class="loading">connecting to database…</div></div>
+    </div>
+    <div class="editor" id="editor">
+      <div class="editor__empty">← select a postcard to review<br><span style="font-size:11px;margin-top:6px;display:block">keyboard: j/k or ← → to navigate · a to approve · Ctrl+S to save</span></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://iylazjxjrxtxyjsugkqw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_9M2OU5Nb1GHIpVQPmWxEBg_7eXbXetA';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const LOCATIONS = [
+  {id:'',name:'— not assigned —'},
+  {id:'horse-camp',name:'1 · horse camp + houston trail'},
+  {id:'community-garden',name:'2 · payson community garden'},
+  {id:'houston-loop',name:'3 · houston loop trail'},
+  {id:'monument-peak',name:'4 · monument peak trail'},
+  {id:'boulders-loop',name:'5 · boulders loop trail'},
+  {id:'cypress',name:'6 · cypress trail'},
+  {id:'apache-trust',name:"7 · Dilzhę'é Apache trust land"},
+  {id:'apache-res',name:"8 · Dilzhę'é Apache reservation"},
+  {id:'event-center',name:'9 · event center'},
+  {id:'peach-orchard',name:'10 · peach orchard trail'},
+  {id:'peach-loop',name:'11 · peach loop trail'},
+  {id:'golf-course',name:'12 · payson golf course'},
+  {id:'green-valley',name:'13 · green valley park'},
+  {id:'american-gulch',name:'14 · american gulch trail'},
+  {id:'rumsey',name:'15 · rumsey park'},
+  {id:'middle-high',name:'16 · payson middle + high school'},
+  {id:'granite-dells',name:'17 · granite dells park'},
+  {id:'ranger-station',name:'18 · payson ranger station'},
+  {id:'college-center',name:'19 · college center'},
+  {id:'airport',name:'20 · airport'},
+  {id:'elementary',name:'21 · payson elementary school'},
+  {id:'toward-pine',name:'22 · toward pine / beeline hwy north ↑'},
+  {id:'toward-star-valley',name:'23 · toward star valley / AZ-260 east →'},
+  {id:'toward-round-valley',name:'24 · toward round valley / south ↓'},
+  {id:'unspecified',name:'25 · unspecified / off map'},
+];
+const CATEGORIES = ['peace','connection','joy','nature','other'];
+
+let allPostcards = [];
+let activeTab = 'all';
+let activeId = null;
+let pendingChanges = {};
+
+async function init() {
+  try {
+    const { data, error } = await sb.from('postcards')
+      .select('*').order('created_at', { ascending: true });
+    if (error) throw error;
+    allPostcards = data || [];
+    document.getElementById('conn-dot').className = 'conn-dot ok';
+    document.getElementById('conn-label').textContent = 'connected · ' + allPostcards.length + ' records';
+    renderList();
+  } catch(e) {
+    document.getElementById('conn-dot').className = 'conn-dot err';
+    document.getElementById('conn-label').textContent = 'error';
+    document.getElementById('list-items').innerHTML =
+      `<div class="loading" style="color:var(--red)">Failed to connect.<br><br>${e.message}<br><br>RLS note: the publishable key can only read approved records unless you also set up an admin policy for authenticated users. You may need to temporarily disable RLS on the postcards table in Supabase → Table Editor → RLS to use this tool.</div>`;
+  }
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  ['all','pending','approved'].forEach(t =>
+    document.getElementById(`tab-${t}`).classList.toggle('on', t === tab));
+  renderList();
+}
+
+function filteredList() {
+  if (activeTab === 'pending')  return allPostcards.filter(p => p.status === 'pending');
+  if (activeTab === 'approved') return allPostcards.filter(p => p.status === 'approved');
+  return allPostcards;
+}
+
+function renderList() {
+  const items = filteredList();
+  const pending = allPostcards.filter(p => p.status === 'pending').length;
+  document.getElementById('pending-badge').textContent = pending;
+  document.getElementById('list-count').textContent = items.length + ' shown';
+  document.getElementById('list-label').textContent =
+    activeTab === 'pending' ? 'pending · ' + pending :
+    activeTab === 'approved' ? 'approved · ' + allPostcards.filter(p=>p.status==='approved').length :
+    'all · ' + allPostcards.length;
+
+  const el = document.getElementById('list-items');
+  if (!items.length) { el.innerHTML = '<div class="list__empty">nothing here</div>'; return; }
+
+  el.innerHTML = items.map(pc => {
+    const imgSrc = getImageUrl(pc, 'front');
+    const isActive = pc.id === activeId ? 'active' : '';
+    const label = pc.feeling || pc.artist_name || pc.path_label || pc.why || '—';
+    return `<div class="pc-item ${isActive}" onclick="selectCard('${pc.id}')">
+      ${imgSrc
+        ? `<img class="pc-item__thumb" src="${imgSrc}" alt="" onerror="this.style.opacity=.3">`
+        : `<div class="pc-item__thumb"></div>`}
+      <div class="pc-item__info">
+        <div class="pc-item__id">${pc.source?.toUpperCase()} · ${new Date(pc.created_at).toLocaleDateString()}</div>
+        <div class="pc-item__name">${esc(label)}</div>
+      </div>
+      <div class="pc-item__status status-${pc.status}">${pc.status}</div>
+    </div>`;
+  }).join('');
+}
+
+function getImageUrl(pc, side) {
+  const path = side === 'front' ? pc.front_image_path : pc.back_image_path;
+  if (!path) return null;
+  const { data } = sb.storage.from('postcards').getPublicUrl(path);
+  return data?.publicUrl || null;
+}
+
+function selectCard(id) {
+  activeId = id;
+  pendingChanges = {};
+  renderList();
+  renderEditor();
+}
+
+function renderEditor() {
+  const pc = allPostcards.find(p => p.id === activeId);
+  if (!pc) return;
+
+  const frontUrl = getImageUrl(pc, 'front');
+  const backUrl  = getImageUrl(pc, 'back');
+
+  const locOpts = LOCATIONS.map(l =>
+    `<option value="${l.id}" ${l.id === (pc.location_id||'') ? 'selected' : ''}>${l.name}</option>`
+  ).join('');
+  const catOpts = CATEGORIES.map(c =>
+    `<option value="${c}" ${c === pc.category ? 'selected' : ''}>${c}</option>`
+  ).join('');
+
+  const hasEmail = pc.contact_email && pc.contact_email.trim();
+
+  document.getElementById('editor').innerHTML = `
+    <div class="ed-head">
+      <div class="ed-head__id">${pc.id.slice(0,8)}…</div>
+      <div class="ed-head__source">${pc.source}</div>
+      <div class="ed-head__right">
+        ${pc.status !== 'approved'
+          ? `<button class="btn btn--approve" onclick="setStatus('approved')">✓ approve</button>`
+          : `<button class="btn btn--pending" onclick="setStatus('pending')">↩ set pending</button>`}
+        ${pc.status !== 'rejected'
+          ? `<button class="btn btn--reject" onclick="setStatus('rejected')">✗ reject</button>`
+          : `<button class="btn btn--pending" onclick="setStatus('pending')">↩ restore</button>`}
+      </div>
+    </div>
+
+    <div class="ed-images">
+      <div class="ed-img-slot">
+        <div class="ed-img-label">front · map sketch</div>
+        ${frontUrl
+          ? `<img class="ed-img" src="${frontUrl}" alt="front">`
+          : `<div class="ed-no-img">no image</div>`}
+      </div>
+      <div class="ed-img-slot">
+        <div class="ed-img-label">back · drawing + response</div>
+        ${backUrl
+          ? `<img class="ed-img" src="${backUrl}" alt="back">`
+          : `<div class="ed-no-img">no image</div>`}
+      </div>
+    </div>
+
+    <div class="ed-fields">
+      <div class="field">
+        <div class="field__label">location pin (assigns this postcard to a map pin) ⚠ approximate</div>
+        <select class="field__input" oninput="markChanged('location_id',this.value)">${locOpts}</select>
+      </div>
+
+      <div class="field--row">
+        <div class="field">
+          <div class="field__label">feeling — prompt 1</div>
+          <input class="field__input" value="${esc(pc.feeling||'')}"
+            oninput="markChanged('feeling',this.value)" placeholder="— blank —">
+        </div>
+        <div class="field">
+          <div class="field__label">category</div>
+          <select class="field__input" oninput="markChanged('category',this.value)">${catOpts}</select>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field__label">why — prompt 2</div>
+        <textarea class="field__input"
+          oninput="markChanged('why',this.value)">${esc(pc.why||'')}</textarea>
+      </div>
+
+      <div class="field--row">
+        <div class="field">
+          <div class="field__label">artist name</div>
+          <input class="field__input" value="${esc(pc.artist_name||'')}"
+            oninput="markChanged('artist_name',this.value)" placeholder="— blank —">
+        </div>
+        <div class="field">
+          <div class="field__label">age</div>
+          <input class="field__input" value="${esc(pc.artist_age||'')}"
+            oninput="markChanged('artist_age',this.value)" placeholder="— blank —">
+        </div>
+      </div>
+
+      <div class="field--row">
+        <div class="field">
+          <div class="field__label">path label</div>
+          <input class="field__input" value="${esc(pc.path_label||'')}"
+            oninput="markChanged('path_label',this.value)">
+        </div>
+        <div class="field">
+          <div class="field__label">path color</div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="color" value="${pc.path_color||'#2a2118'}"
+              oninput="markChanged('path_color',this.value)" style="width:36px;height:30px;border:1px solid var(--paper3);border-radius:3px;padding:1px;cursor:pointer;background:none;">
+            <input class="field__input" style="flex:1" value="${esc(pc.path_color||'#2a2118')}"
+              oninput="markChanged('path_color',this.value)">
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field__label">contact email (private — never shown publicly)</div>
+        <input class="field__input" type="email" value="${esc(pc.contact_email||'')}"
+          oninput="markChanged('contact_email',this.value)" placeholder="—">
+      </div>
+
+      ${hasEmail ? `
+      <div class="email-panel">
+        <div class="email-panel__label">send notification email</div>
+        <div class="email-panel__desc">
+          Opens your email client with a pre-written message to this contributor, including their postcard details and a link to the map.
+        </div>
+        <button class="btn btn--blue" onclick="sendNotification()">compose notification email</button>
+      </div>` : ''}
+
+      <div class="meta-line">
+        created: ${new Date(pc.created_at).toLocaleString()}
+        &nbsp;·&nbsp; status: <strong>${pc.status}</strong>
+        ${pc.approved_at ? '&nbsp;·&nbsp; approved: ' + new Date(pc.approved_at).toLocaleString() : ''}
+        ${pc.path_geojson ? '&nbsp;·&nbsp; <span style="color:var(--green)">has path GeoJSON ✓</span>' : '&nbsp;·&nbsp; <span style="color:var(--faint)">no path GeoJSON</span>'}
+      </div>
+    </div>
+
+    <div class="ed-save-bar">
+      <span class="ed-save-bar__msg" id="save-msg"></span>
+      <span class="ed-save-bar__err" id="save-err"></span>
+      <button class="btn btn--ghost" onclick="navCard(-1)">← prev</button>
+      <button class="btn btn--ghost" onclick="navCard(1)">next →</button>
+      <button class="btn btn--save" id="save-btn" onclick="saveChanges()" disabled>save changes</button>
+    </div>
+  `;
+}
+
+function markChanged(field, value) {
+  pendingChanges[field] = value;
+  if (event?.target) event.target.classList.add('changed');
+  const btn = document.getElementById('save-btn');
+  if (btn) { btn.disabled = false; }
+  const msg = document.getElementById('save-msg');
+  if (msg) msg.textContent = 'unsaved changes';
+}
+
+async function saveChanges() {
+  if (!activeId || !Object.keys(pendingChanges).length) return;
+  const btn = document.getElementById('save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'saving…'; }
+  try {
+    const { error } = await sb.from('postcards').update(pendingChanges).eq('id', activeId);
+    if (error) throw error;
+    const idx = allPostcards.findIndex(p => p.id === activeId);
+    if (idx >= 0) Object.assign(allPostcards[idx], pendingChanges);
+    pendingChanges = {};
+    showToast('✓ saved');
+    renderList();
+    setTimeout(renderEditor, 200);
+  } catch(e) {
+    const errEl = document.getElementById('save-err');
+    if (errEl) errEl.textContent = 'Error: ' + e.message;
+    if (btn) { btn.disabled = false; btn.textContent = 'save changes'; }
+  }
+}
+
+async function setStatus(status) {
+  if (!activeId) return;
+  const update = { status };
+  if (status === 'approved') update.approved_at = new Date().toISOString();
+  try {
+    const { error } = await sb.from('postcards').update(update).eq('id', activeId);
+    if (error) throw error;
+    const idx = allPostcards.findIndex(p => p.id === activeId);
+    if (idx >= 0) Object.assign(allPostcards[idx], update);
+    showToast(status === 'approved' ? '✓ approved' : status === 'rejected' ? 'rejected' : 'set to pending');
+    renderList();
+    renderEditor();
+    if (activeTab === 'pending' && status !== 'pending') {
+      const next = allPostcards.find(p => p.status === 'pending' && p.id !== activeId);
+      if (next) setTimeout(() => selectCard(next.id), 400);
+    }
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+function navCard(dir) {
+  const items = filteredList();
+  const idx = items.findIndex(p => p.id === activeId);
+  const next = items[idx + dir];
+  if (next) selectCard(next.id);
+}
+
+function sendNotification() {
+  const pc = allPostcards.find(p => p.id === activeId);
+  if (!pc || !pc.contact_email) return;
+  const name = pc.artist_name ? `Hi ${pc.artist_name},` : 'Hello,';
+  const frontUrl = getImageUrl(pc, 'front') || '(image on file)';
+  const subject = encodeURIComponent('Your path is on the Mini Paths of Payson map!');
+  const body = encodeURIComponent(
+`${name}
+
+Thank you for being part of the Mini Paths of Payson — a community journaling project mapping the everyday paths that connect our lives, places, and community in Payson, AZ.
+
+Your postcard has been added to the map!
+
+Path: "${pc.path_label || pc.feeling || 'your path'}"${pc.feeling ? '\nFeeling: "' + pc.feeling + '"' : ''}${pc.why ? '\n\nYou told us: "' + pc.why + '"' : ''}
+
+We will send you a link to view your postcard on the map once the site is published online. In the meantime, all paths contributed so far are part of a growing collective picture of Payson today.
+
+Thank you for contributing.
+
+— The Mini Paths of Payson team
+start anywhere. go everywhere.
+
+(We will never share your email or any personal details with anyone.)
+`);
+  window.open(`mailto:${pc.contact_email}?subject=${subject}&body=${body}`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
+}
+
+document.addEventListener('keydown', e => {
+  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) {
+    if ((e.ctrlKey||e.metaKey) && e.key==='s') { e.preventDefault(); saveChanges(); }
+    return;
+  }
+  if (e.key==='ArrowRight'||e.key==='j') navCard(1);
+  if (e.key==='ArrowLeft' ||e.key==='k') navCard(-1);
+  if (e.key==='a') setStatus('approved');
+  if ((e.ctrlKey||e.metaKey)&&e.key==='s') { e.preventDefault(); saveChanges(); }
+});
+
+init();
+</script>
+</body>
+</html>

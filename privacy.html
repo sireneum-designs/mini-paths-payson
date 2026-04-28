@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Privacy & Data Use · The Mini Paths of Payson</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --mp-ink:       #2a2118;
+  --mp-ink-soft:  #6b5d4f;
+  --mp-ink-faint: #b0a090;
+  --mp-paper:     #f5f0e8;
+  --mp-paper2:    #ede6d8;
+  --mp-paper3:    #e2d9c8;
+  --mp-cream:     #faf7f1;
+  --mp-orange:    oklch(62% 0.13 48);
+
+  --mp-radius: 4px;
+  --mp-font-head: 'Inter', 'Helvetica Neue', 'Arial', sans-serif;
+  --mp-font-body: 'Inter', 'Helvetica Neue', 'Arial', sans-serif;
+  --mp-font-mono: 'Courier New', Courier, monospace;
+
+  --mp-shadow: 0 2px 12px rgba(42,33,24,0.10), 0 1px 3px rgba(42,33,24,0.08);
+}
+
+html, body { height: 100%; background: var(--mp-paper); color: var(--mp-ink); font-family: var(--mp-font-body); }
+body { display: flex; flex-direction: column; min-height: 100vh; }
+
+a { color: var(--mp-orange); text-decoration: underline; text-underline-offset: 3px; }
+a:hover { color: var(--mp-ink); }
+
+/* ── Topbar (mirrors index.html) ────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 20px; height: 48px; min-height: 48px;
+  background: var(--mp-ink); color: var(--mp-paper);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.topbar__brand { display: flex; align-items: center; gap: 7px; color: var(--mp-paper); font-size: 13px; letter-spacing: 0.04em; opacity: 0.9; text-decoration: none; }
+.topbar__brand:hover { opacity: 1; color: var(--mp-paper); }
+.topbar__mark { font-size: 16px; color: var(--mp-orange); }
+.topbar__name { font-family: var(--mp-font-head); font-weight: 600; letter-spacing: -0.01em; }
+.topbar__nav { display: flex; gap: 2px; margin-left: auto; }
+.topbar__tab {
+  padding: 5px 14px; font-size: 12px; color: rgba(245,240,232,0.55);
+  border-radius: 3px; letter-spacing: 0.03em;
+  text-decoration: none;
+}
+.topbar__tab:hover { color: var(--mp-paper); background: rgba(255,255,255,0.07); }
+.topbar__tab.is-on { color: var(--mp-paper); background: rgba(255,255,255,0.12); }
+
+/* ── Page layout ────────────────────────────────────────────── */
+.page {
+  flex: 1;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 32px 80px;
+  width: 100%;
+}
+
+.page__eyebrow {
+  font-family: var(--mp-font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--mp-ink-faint);
+  margin-bottom: 12px;
+}
+.page__title {
+  font-family: var(--mp-font-head);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--mp-ink);
+  margin-bottom: 14px;
+}
+.page__lede {
+  font-size: 16px;
+  color: var(--mp-ink-soft);
+  line-height: 1.7;
+  max-width: 600px;
+  margin-bottom: 36px;
+}
+
+.page__rule {
+  height: 1px; background: var(--mp-paper3);
+  margin: 0 0 36px;
+}
+
+/* ── Section ────────────────────────────────────────────────── */
+.section { margin-bottom: 32px; }
+.section__head {
+  font-family: var(--mp-font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--mp-ink-faint);
+  margin-bottom: 12px;
+}
+.section__title {
+  font-family: var(--mp-font-head);
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--mp-ink);
+  margin-bottom: 10px;
+  letter-spacing: -0.005em;
+}
+.section__p {
+  font-size: 14px;
+  color: var(--mp-ink-soft);
+  line-height: 1.75;
+  margin-bottom: 12px;
+}
+.section__p:last-child { margin-bottom: 0; }
+.section__p strong { color: var(--mp-ink); font-weight: 600; }
+
+.section__list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.section__list li {
+  font-size: 14px;
+  color: var(--mp-ink-soft);
+  line-height: 1.65;
+  padding-left: 22px;
+  position: relative;
+}
+.section__list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 8px;
+  height: 1.5px;
+  background: var(--mp-orange);
+}
+.section__list li strong { color: var(--mp-ink); font-weight: 600; }
+
+/* ── Pledge card ────────────────────────────────────────────── */
+.pledge {
+  background: var(--mp-cream);
+  border: 1px solid var(--mp-paper3);
+  border-left: 3px solid var(--mp-orange);
+  padding: 22px 26px;
+  border-radius: var(--mp-radius);
+  margin: 28px 0 36px;
+}
+.pledge__title {
+  font-family: var(--mp-font-head);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mp-ink);
+  margin-bottom: 10px;
+}
+.pledge__p {
+  font-size: 14.5px;
+  color: var(--mp-ink-soft);
+  line-height: 1.7;
+}
+.pledge__p strong { color: var(--mp-ink); font-weight: 600; }
+
+/* ── Contact / Removal block ────────────────────────────────── */
+.removal {
+  background: var(--mp-paper2);
+  border-radius: var(--mp-radius);
+  padding: 24px 28px;
+  margin-top: 28px;
+}
+.removal__head {
+  font-family: var(--mp-font-head);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--mp-ink);
+  margin-bottom: 10px;
+}
+.removal__p {
+  font-size: 14px;
+  color: var(--mp-ink-soft);
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+.removal__contact {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--mp-paper);
+  border: 1px solid var(--mp-paper3);
+  border-radius: var(--mp-radius);
+  padding: 12px 18px;
+  margin-top: 6px;
+}
+.removal__contact-label {
+  font-family: var(--mp-font-mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--mp-ink-faint);
+}
+.removal__contact-value {
+  font-family: var(--mp-font-mono);
+  font-size: 14px;
+  color: var(--mp-ink);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.removal__contact-value a {
+  color: var(--mp-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--mp-orange);
+}
+.removal__contact-value a:hover { color: var(--mp-orange); }
+.removal__contact-pending {
+  font-style: italic;
+  color: var(--mp-ink-faint);
+  font-size: 13px;
+}
+.removal__include {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--mp-ink-soft);
+  line-height: 1.7;
+}
+.removal__include strong { color: var(--mp-ink); font-weight: 600; }
+
+/* ── Footer mini ────────────────────────────────────────────── */
+.foot {
+  border-top: 1px solid var(--mp-paper3);
+  padding: 24px 32px;
+  background: var(--mp-paper2);
+  font-family: var(--mp-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--mp-ink-faint);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+}
+.foot a { color: var(--mp-ink-soft); text-decoration: none; }
+.foot a:hover { color: var(--mp-ink); }
+.foot__sep { opacity: 0.5; }
+
+/* ── Last updated ───────────────────────────────────────────── */
+.lastmod {
+  font-family: var(--mp-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mp-ink-faint);
+  margin-top: 48px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--mp-paper3);
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="index.html" class="topbar__brand">
+    <span class="topbar__mark">✦</span>
+    <span class="topbar__name">mini paths of payson</span>
+  </a>
+  <nav class="topbar__nav">
+    <a class="topbar__tab" href="index.html">the map</a>
+    <a class="topbar__tab" href="index.html#gallery">all postcards</a>
+    <a class="topbar__tab" href="index.html#community">the event</a>
+    <a class="topbar__tab is-on" href="privacy.html">privacy</a>
+  </nav>
+</header>
+
+<main class="page">
+
+  <div class="page__eyebrow">how we handle what you share</div>
+  <h1 class="page__title">Privacy &amp; data use</h1>
+  <p class="page__lede">
+    The Mini Paths of Payson is a community art and research project.
+    Every postcard, drawing, and path on the map was given to us by a person.
+    Here's exactly what we do with that — and what we will <em>never</em> do.
+  </p>
+
+  <div class="page__rule"></div>
+
+  <!-- ── Pledge ─────────────────────────────────────────────── -->
+  <div class="pledge">
+    <div class="pledge__title">Our pledge</div>
+    <p class="pledge__p">
+      <strong>We will never sell your data.</strong>
+      We will never share it with advertisers, brokers, or any third party
+      for marketing. We will only ever contact you about
+      <em>The Mini Paths of Payson</em> — nothing else.
+    </p>
+  </div>
+
+  <!-- ── What we collect ────────────────────────────────────── -->
+  <section class="section">
+    <div class="section__head">01 — what we collect</div>
+    <h2 class="section__title">When you submit a postcard or path</h2>
+    <p class="section__p">
+      You decide how much to share. The only thing we actually
+      need is the path or postcard itself. Everything else is optional.
+    </p>
+    <ul class="section__list">
+      <li><strong>Your path</strong> — the route you drew on the map (geographic coordinates).</li>
+      <li><strong>Your postcard</strong> — the drawing, photo, or words you sent in.</li>
+      <li><strong>How it makes you feel</strong> — the feeling word and any "why" you wrote.</li>
+      <li><strong>Optional details</strong> — your name (or just a first name, or nothing), your age, and an email if you want us to send you the link to the live map.</li>
+    </ul>
+  </section>
+
+  <!-- ── How we use it ──────────────────────────────────────── -->
+  <section class="section">
+    <div class="section__head">02 — how we use it</div>
+    <h2 class="section__title">For the project, and only the project</h2>
+    <p class="section__p">
+      Your contributions appear on this map and in connected exhibits,
+      reports, and conversations about Payson's everyday geography of
+      connection, peace, joy, and nature. That's it.
+    </p>
+    <ul class="section__list">
+      <li><strong>Public:</strong> your postcard art, the path you drew, the feeling word, and (if you signed it) your first name &amp; age.</li>
+      <li><strong>Private:</strong> your email, if you gave one. It's never shown publicly and is used only to send you the link to the project.</li>
+      <li><strong>Approval first:</strong> every submission is reviewed before it appears on the public map.</li>
+    </ul>
+  </section>
+
+  <!-- ── Where it lives ─────────────────────────────────────── -->
+  <section class="section">
+    <div class="section__head">03 — where your data lives</div>
+    <h2 class="section__title">Stored simply, kept safe</h2>
+    <p class="section__p">
+      Submissions live in a database hosted by
+      <a href="https://supabase.com" target="_blank" rel="noopener noreferrer">Supabase</a>,
+      with images stored in their secure storage layer. Access is limited
+      to the project organizers. We don't use third-party analytics, ad
+      trackers, or fingerprinting cookies.
+    </p>
+  </section>
+
+  <!-- ── Children & participants ────────────────────────────── -->
+  <section class="section">
+    <div class="section__head">04 — kids &amp; families</div>
+    <h2 class="section__title">A note for parents</h2>
+    <p class="section__p">
+      Some of our most beautiful postcards come from children. When a
+      young person submits a postcard at a community event, a parent
+      or guardian is present. We display only first names (or initials,
+      or no name at all) by default. If you'd like a child's submission
+      anonymized further or removed, see below — we'll handle it the
+      same day we hear from you.
+    </p>
+  </section>
+
+  <!-- ── Removal ────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section__head">05 — your rights</div>
+    <h2 class="section__title">You can ask us to remove your data, anytime</h2>
+    <p class="section__p">
+      You're the author of your contribution. If you want it taken off
+      the public map, anonymized, or deleted from our database entirely,
+      just say so — no explanation needed.
+    </p>
+
+    <div class="removal">
+      <div class="removal__head">Request removal</div>
+      <p class="removal__p">
+        Email us at the address below. We'll confirm we received it,
+        do the removal, and email you back when it's done — usually within
+        a few days.
+      </p>
+      <div class="removal__contact" id="removal-contact">
+        <span class="removal__contact-label">contact</span>
+        <span class="removal__contact-value" id="removal-email">
+          <span class="removal__contact-pending">loading contact info…</span>
+        </span>
+      </div>
+      <div class="removal__include">
+        <strong>To help us find your submission, please include:</strong>
+        any name or initials you submitted under, the approximate date,
+        and (if you remember) the feeling word or path you described.
+        A photo of your postcard works too.
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Changes ────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section__head">06 — changes</div>
+    <h2 class="section__title">If this page changes</h2>
+    <p class="section__p">
+      If we ever update this policy, we'll update the "last revised" date
+      at the bottom of this page. Material changes (anything that
+      affects how your data is handled) will also be announced on the
+      project map's home view.
+    </p>
+  </section>
+
+  <div class="lastmod" id="lastmod">last revised — april 2026</div>
+
+</main>
+
+<footer class="foot">
+  <a href="index.html">← back to the map</a>
+  <span class="foot__sep">·</span>
+  <a href="submit.html">add your path</a>
+  <span class="foot__sep">·</span>
+  <span>rim country · payson, arizona</span>
+</footer>
+
+<!-- Supabase client (loaded for fetching the configurable removal email) -->
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+<script>
+// ── Supabase config (mirrors index.html) ──────────────────────
+const SUPABASE_URL = 'https://iylazjxjrxtxyjsugkqw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_9M2OU5Nb1GHIpVQPmWxEBg_7eXbXetA';
+
+// Fallback if Supabase is unreachable or the row hasn't been set yet.
+const FALLBACK_EMAIL = null;  // null => show a polite "not yet configured" message
+
+const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+// ── Render the contact email ─────────────────────────────────
+const emailEl = document.getElementById('removal-email');
+
+function renderEmail(addr) {
+  if (addr && typeof addr === 'string' && addr.includes('@')) {
+    emailEl.innerHTML = '';
+    const a = document.createElement('a');
+    a.href = 'mailto:' + addr + '?subject=Mini%20Paths%20of%20Payson%20%E2%80%94%20data%20removal%20request';
+    a.textContent = addr;
+    emailEl.appendChild(a);
+  } else {
+    emailEl.innerHTML = '<span class="removal__contact-pending">' +
+      'a contact email is being set up — please check back shortly, or use the ' +
+      '<a href="submit.html">submit page</a> to leave a message.' +
+      '</span>';
+  }
+}
+
+async function loadRemovalEmail() {
+  if (!sb) { renderEmail(FALLBACK_EMAIL); return; }
+  try {
+    const { data, error } = await sb
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'removal_contact_email')
+      .maybeSingle();
+    if (error) {
+      console.warn('site_settings read error:', error);
+      renderEmail(FALLBACK_EMAIL);
+      return;
+    }
+    renderEmail(data && data.value ? data.value : FALLBACK_EMAIL);
+  } catch (e) {
+    console.warn('site_settings fetch failed:', e);
+    renderEmail(FALLBACK_EMAIL);
+  }
+}
+
+// Optional: set last-revised from site_settings.policy_last_revised
+async function loadLastModified() {
+  if (!sb) return;
+  try {
+    const { data } = await sb
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'policy_last_revised')
+      .maybeSingle();
+    if (data && data.value) {
+      document.getElementById('lastmod').textContent = 'last revised — ' + data.value;
+    }
+  } catch (e) { /* silent */ }
+}
+
+loadRemovalEmail();
+loadLastModified();
+</script>
+
+</body>
+</html>

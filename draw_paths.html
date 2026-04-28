@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Draw Paths — Mini Paths of Payson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --ink:#1e1812;--soft:#6b5d4f;--faint:#b0a090;
+  --paper:#f5f0e8;--paper2:#ede6d8;--paper3:#d8cfc0;
+  --orange:#c4622a;--green:#4a8a5a;--red:#b03030;--blue:#4A8FA8;
+  --sans:'Inter','Helvetica Neue',Arial,sans-serif;
+  --mono:'Courier New',Courier,monospace;
+}
+html,body{height:100%;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:13px;overflow:hidden;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}
+
+#app{display:grid;grid-template-rows:48px 1fr;height:100vh;}
+.topbar{background:var(--ink);color:var(--paper);padding:0 20px;display:flex;align-items:center;gap:12px;border-bottom:2px solid var(--orange);}
+.topbar__title{font-size:14px;font-weight:600;}
+.topbar__sub{font-size:10px;color:rgba(245,240,232,0.4);font-family:var(--mono);}
+.topbar__right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:#888;flex-shrink:0;}
+.conn-dot.ok{background:var(--green);}
+.conn-dot.err{background:var(--red);}
+.conn-label{font-size:10px;color:rgba(245,240,232,0.4);font-family:var(--mono);}
+
+.body{display:grid;grid-template-columns:300px 1fr;overflow:hidden;}
+
+/* ── Panel ── */
+.panel{border-right:1px solid var(--paper3);overflow-y:auto;background:var(--paper2);display:flex;flex-direction:column;}
+.panel__section{padding:14px 16px;border-bottom:1px solid var(--paper3);}
+.panel__label{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--faint);font-family:var(--mono);margin-bottom:8px;}
+.panel__title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:4px;}
+.panel__body{font-size:11.5px;color:var(--soft);line-height:1.6;}
+
+/* Postcard select */
+.pc-select-list{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;}
+.pc-select-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:3px;cursor:pointer;border:1px solid transparent;transition:all .1s;}
+.pc-select-item:hover{background:var(--paper);}
+.pc-select-item.selected{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.pc-select-item__thumb{width:44px;height:31px;object-fit:cover;border-radius:2px;flex-shrink:0;background:var(--paper3);}
+.pc-select-item__label{font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pc-select-item__sub{font-size:9px;color:var(--faint);font-family:var(--mono);}
+.pc-select-item.selected .pc-select-item__sub{color:rgba(245,240,232,.4);}
+.pc-select-item__geo{font-size:9px;padding:1px 5px;border-radius:8px;flex-shrink:0;}
+.has-geo{background:#d6edd9;color:#2a6a35;}
+.no-geo{background:var(--paper3);color:var(--faint);}
+
+/* Style controls */
+.style-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px;color:var(--soft);}
+.style-row input[type=range]{flex:1;}
+.style-row input[type=color]{width:30px;height:24px;border:1px solid var(--paper3);border-radius:3px;padding:1px;cursor:pointer;background:none;}
+
+/* Buttons */
+.btn{padding:7px 14px;font-size:11px;font-weight:500;border-radius:3px;cursor:pointer;letter-spacing:0.04em;transition:all .12s;border:none;display:inline-flex;align-items:center;gap:6px;}
+.btn--draw{background:var(--ink);color:var(--paper);}
+.btn--draw:hover{opacity:.85;}
+.btn--draw.is-drawing{background:var(--orange);}
+.btn--save{background:var(--green);color:#fff;}
+.btn--save:hover{opacity:.88;}
+.btn--save:disabled{opacity:.4;cursor:not-allowed;}
+.btn--ghost{background:var(--paper3);color:var(--ink);}
+.btn--ghost:hover{background:var(--paper);}
+.btn--danger{background:var(--red);color:#fff;}
+.btn--danger:hover{opacity:.88;}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+
+/* Scan overlay control */
+.scan-ctrl{display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--soft);}
+.scan-ctrl label{display:flex;align-items:center;gap:6px;}
+.scan-ctrl input[type=range]{width:100%;}
+
+/* GeoJSON preview */
+.geo-preview{font-family:var(--mono);font-size:9.5px;background:var(--paper);border:1px solid var(--paper3);border-radius:3px;padding:8px;max-height:100px;overflow-y:auto;color:var(--soft);white-space:pre-wrap;word-break:break-all;}
+
+/* Map */
+#map-container{position:relative;}
+#draw-map{width:100%;height:100%;}
+
+/* Scan overlay controls on map */
+.map-scan-controls{position:absolute;bottom:48px;right:12px;z-index:500;background:rgba(245,240,232,0.92);border:1px solid var(--paper3);border-radius:4px;padding:10px 14px;font-size:11px;color:var(--soft);display:flex;flex-direction:column;gap:8px;min-width:160px;}
+.map-scan-controls label{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);}
+
+/* Saved paths overlay on map */
+.path-tooltip{background:var(--paper);border:1px solid var(--paper3);border-radius:3px;padding:4px 8px;font-size:11px;font-family:var(--sans);}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:8px 18px;border-radius:3px;font-size:11px;font-family:var(--mono);z-index:9000;letter-spacing:.06em;display:none;}
+.toast.show{display:block;}
+
+/* Leaflet overrides */
+.leaflet-control-zoom{border:1px solid var(--paper3) !important;border-radius:3px !important;}
+.leaflet-control-zoom a{background:var(--paper) !important;color:var(--ink) !important;}
+
+/* Inline style editor (postcard detail + analog path rows) */
+.style-edit{margin-top:8px;padding:8px 10px;background:var(--paper2);border:1px solid var(--paper3);border-radius:3px;display:flex;flex-direction:column;gap:6px;}
+.style-edit__row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--soft);}
+.style-edit__row input[type=range]{flex:1;}
+.style-edit__row input[type=color]{width:28px;height:22px;border:1px solid var(--paper3);border-radius:2px;padding:1px;cursor:pointer;background:none;}
+.style-edit__row span{min-width:14px;text-align:right;font-family:var(--mono);font-size:10px;}
+.btn--update{background:var(--blue);color:#fff;font-size:10px;padding:4px 10px;border-radius:2px;margin-top:2px;align-self:flex-start;}
+.btn--update:hover{opacity:.88;}
+
+/* Analog path selected expanded area */
+.ap-item__edit{margin-top:8px;padding-top:8px;border-top:1px solid rgba(245,240,232,.15);display:flex;flex-direction:column;gap:5px;}
+.ap-item__edit .style-edit__row{color:rgba(245,240,232,.7);}
+.ap-item__edit .style-edit__row span{color:rgba(245,240,232,.5);}
+.ap-item__edit .btn--update{background:rgba(74,143,168,.9);}
+.ap-list{display:flex;flex-direction:column;gap:4px;margin-top:8px;}
+.ap-item.selected{background:var(--ink);border-color:var(--ink);}
+.ap-item.selected .ap-item__batch{color:var(--paper);}
+.ap-item.selected .ap-item__date{color:rgba(245,240,232,.4);}
+.ap-item.selected .ap-item__del{color:#ff8080;border-color:#ff8080;}
+.ap-item.selected .ap-item__del:hover{background:#b03030;color:#fff;border-color:#b03030;}
+.ap-item{display:flex;flex-direction:column;gap:0;padding:6px 8px;border-radius:3px;background:var(--paper);border:1px solid var(--paper3);font-size:11px;cursor:pointer;transition:all .1s;}
+.ap-item:hover{border-color:var(--faint);}
+.ap-item__meta{flex:1;min-width:0;}
+.ap-item__top{display:flex;align-items:flex-start;gap:8px;}
+.ap-item__top-text{flex:1;min-width:0;}
+.ap-item__batch{font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ap-item__date{font-size:9.5px;color:var(--faint);font-family:var(--mono);margin-top:1px;}
+.ap-item__del{flex-shrink:0;font-size:10px;color:var(--red);padding:2px 6px;border:1px solid var(--red);border-radius:2px;opacity:.7;cursor:pointer;background:none;}
+.ap-item__del:hover{opacity:1;background:var(--red);color:#fff;}
+.collapsible-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+.collapsible-toggle__arrow{font-size:9px;color:var(--faint);transition:transform .15s;}
+.collapsible-toggle.open .collapsible-toggle__arrow{transform:rotate(180deg);}
+.collapsible-body{display:none;margin-top:6px;}
+.collapsible-body.open{display:block;}
+.btn--unattr{background:transparent;color:var(--soft);border:1px dashed var(--paper3);font-size:10px;padding:5px 10px;border-radius:3px;width:100%;margin-bottom:8px;text-align:left;letter-spacing:.04em;}
+.btn--unattr:hover{border-color:var(--faint);color:var(--ink);}
+.btn--unattr.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.unattr-form{background:var(--paper);border:1px solid var(--paper3);border-radius:3px;padding:10px 12px;margin-bottom:8px;display:none;flex-direction:column;gap:8px;}
+.unattr-form.visible{display:flex;}
+.unattr-form label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-family:var(--mono);margin-bottom:2px;display:block;}
+.unattr-form input{font-size:11px;font-family:var(--sans);border:1px solid var(--paper3);border-radius:2px;padding:5px 8px;background:var(--paper2);color:var(--ink);width:100%;}
+.unattr-form input:focus{outline:none;border-color:var(--soft);}
+.unattr-badge{display:inline-block;font-size:9px;font-family:var(--mono);background:var(--paper3);color:var(--soft);padding:2px 6px;border-radius:8px;margin-top:4px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="topbar__title">draw paths</div>
+    <div class="topbar__sub">admin · mini paths of payson</div>
+    <div class="topbar__right">
+      <div class="conn-dot" id="conn-dot"></div>
+      <div class="conn-label" id="conn-label">connecting…</div>
+      <button class="btn btn--ghost" style="font-size:10px;margin-left:8px" onclick="location.href='index.html'">← map</button>
+      <button class="btn btn--ghost" style="font-size:10px" onclick="location.href='review.html'">review</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- Left panel -->
+    <div class="panel" id="panel">
+      <div class="panel__section">
+        <div class="panel__label">what this does</div>
+        <div class="panel__body">
+          Trace a path from the event scan over the real map. The resulting GeoJSON saves to that postcard's record in Supabase and feeds the tapestry visualization automatically. For analog paths that can't be matched to a specific postcard, use <em>save path without postcard</em>.
+        </div>
+      </div>
+
+      <!-- 1. Select postcard -->
+      <div class="panel__section">
+        <div class="panel__label">1 · select postcard</div>
+
+        <!-- Unattributed path button -->
+        <button class="btn--unattr" id="btn-unattr" onclick="toggleUnattributed()">+ save path without postcard</button>
+        <div class="unattr-form" id="unattr-form">
+          <div>
+            <label>batch label</label>
+            <input type="text" id="unattr-batch" placeholder="e.g. north batch · event 3">
+          </div>
+          <div>
+            <label>date collected</label>
+            <input type="date" id="unattr-date">
+          </div>
+        </div>
+
+        <div class="pc-select-list" id="pc-list"><div style="font-size:11px;color:var(--faint);padding:8px 0">loading…</div></div>
+      </div>
+
+      <!-- 2. Selected postcard info -->
+      <div class="panel__section" id="selected-info" style="display:none">
+        <div class="panel__label">selected postcard</div>
+        <div id="selected-detail"></div>
+      </div>
+
+      <!-- 3. Draw tools -->
+      <div class="panel__section">
+        <div class="panel__label">2 · draw the path</div>
+        <div class="style-row">
+          <span>color</span>
+          <input type="color" id="draw-color" value="#c4622a" oninput="updateDrawStyle()">
+        </div>
+        <div class="style-row">
+          <span>weight</span>
+          <input type="range" id="draw-weight" min="1" max="14" value="5" step="1" oninput="updateDrawStyle()">
+          <span id="weight-out">5</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn--draw" id="btn-draw" onclick="startDraw()">+ draw line</button>
+          <button class="btn btn--ghost" onclick="undoLast()">undo</button>
+          <button class="btn btn--danger" onclick="clearDrawn()">clear</button>
+        </div>
+        <div style="font-size:11px;color:var(--soft);line-height:1.6">
+          Click points along the path. Double-click to finish a segment. Draw multiple segments to complete a route. Use the community scan overlay to trace.
+        </div>
+      </div>
+
+      <!-- 4. Save -->
+      <div class="panel__section">
+        <div class="panel__label">3 · save to database</div>
+        <div id="path-status" style="font-size:11px;color:var(--faint);margin-bottom:8px;">no path drawn yet</div>
+        <button class="btn btn--save" id="save-btn" onclick="savePath()" disabled>save path to postcard</button>
+        <div id="geo-preview" class="geo-preview" style="margin-top:8px;display:none"></div>
+      </div>
+
+      <!-- 5. Scan overlay -->
+      <div class="panel__section">
+        <div class="panel__label">scan overlay</div>
+        <div class="scan-ctrl">
+          <label><input type="checkbox" id="scan-vis" checked onchange="updateScan()"> show community scan</label>
+          <div>opacity</div>
+          <input type="range" id="scan-op" min="0.05" max="0.95" step="0.05" value="0.55" oninput="updateScan()">
+        </div>
+      </div>
+
+      <!-- 6. Analog paths management -->
+      <div class="panel__section">
+        <div class="collapsible-toggle" id="ap-toggle" onclick="toggleApSection()">
+          <div class="panel__label" style="margin-bottom:0">saved analog paths</div>
+          <span class="collapsible-toggle__arrow">▼</span>
+        </div>
+        <div class="collapsible-body" id="ap-body">
+          <div id="ap-list" class="ap-list">
+            <div style="font-size:11px;color:var(--faint);padding:4px 0">loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map-container">
+      <div id="draw-map"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://iylazjxjrxtxyjsugkqw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_9M2OU5Nb1GHIpVQPmWxEBg_7eXbXetA';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let map, scanLayer, drawnLayers = [], allPostcards = [], analogPaths = [], selectedId = null, unattributedMode = false, selectedApId = null, apHighlightLayer = null;
+
+// ── MAP INIT ──────────────────────────────────────────────────────────────────
+function initMap() {
+  const BOUNDS = [[34.207, -111.385], [34.287, -111.247]];
+  const IMG    = [[34.20762789, -111.38514387], [34.28708849, -111.24696674]];
+  const SCAN   = [[34.2109, -111.3789], [34.2909, -111.2290]];
+
+  map = L.map('draw-map', {
+    zoomControl: false,
+    maxBounds: BOUNDS,
+    maxBoundsViscosity: 0.85,
+    minZoom: 12, maxZoom: 17,
+  }).fitBounds(BOUNDS, { padding: [20,20] });
+
+  L.imageOverlay('src/geobasemap.png', IMG, { opacity: 1 }).addTo(map);
+
+  scanLayer = L.imageOverlay('src/community_scan.jpg', SCAN, {
+    opacity: 0.55,
+    className: 'scan-layer',
+    interactive: false,
+  }).addTo(map);
+
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+  map.pm.addControls({
+    position: 'topleft',
+    drawMarker: false, drawCircle: false, drawCircleMarker: false,
+    drawRectangle: false, drawPolygon: false, drawText: false,
+    drawPolyline: true, editMode: true, dragMode: false,
+    cutPolygon: false, removalMode: true, rotateMode: false,
+    snappable: false,
+  });
+
+  map.on('pm:create', ({ shape, layer }) => {
+    if (shape !== 'Line') return;
+    const color = document.getElementById('draw-color').value;
+    const weight = parseInt(document.getElementById('draw-weight').value);
+    layer.setStyle({ color, weight, opacity: 0.85, lineCap: 'round', lineJoin: 'round' });
+    drawnLayers.push(layer);
+    updatePathStatus();
+    document.getElementById('btn-draw').classList.remove('is-drawing');
+  });
+
+  map.on('pm:drawstart', () => document.getElementById('btn-draw').classList.add('is-drawing'));
+  map.on('pm:drawend',   () => document.getElementById('btn-draw').classList.remove('is-drawing'));
+
+  // Load existing paths from db as background reference
+  loadExistingPaths();
+}
+
+// ── LOAD EXISTING PATHS ───────────────────────────────────────────────────────
+function loadExistingPaths() {
+  allPostcards.filter(p => p.path_geojson).forEach(pc => {
+    try {
+      const coords = pc.path_geojson.coordinates;
+      if (!coords || !coords.length) return;
+      const latLngs = coords.map(([lon, lat]) => [lat, lon]);
+      L.polyline(latLngs, {
+        color: pc.path_color || '#888',
+        weight: 2,
+        opacity: 0.4,
+        lineCap: 'round',
+      }).bindTooltip(
+        `<div class="path-tooltip">${pc.artist_name || pc.path_label || 'path'}<br><em>${pc.feeling || ''}</em></div>`,
+        { sticky: true }
+      ).addTo(map);
+    } catch(e) {}
+  });
+}
+
+// ── SUPABASE INIT ─────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const [{ data: pcData, error: pcErr }, { data: apData, error: apErr }] = await Promise.all([
+      sb.from('postcards')
+        .select('id,status,source,feeling,artist_name,path_label,path_color,path_geojson,front_image_path,location_id,contact_email')
+        .order('created_at', { ascending: true }),
+      sb.from('analog_paths')
+        .select('id,path_geojson,path_color,path_weight,batch_label,collected_at')
+        .order('collected_at', { ascending: false }),
+    ]);
+    if (pcErr) throw pcErr;
+    allPostcards = pcData || [];
+    analogPaths  = apData  || [];
+    document.getElementById('conn-dot').className = 'conn-dot ok';
+    document.getElementById('conn-label').textContent = 'connected · ' + allPostcards.length;
+    renderPcList();
+    renderApList();
+    initMap();
+  } catch(e) {
+    document.getElementById('conn-dot').className = 'conn-dot err';
+    document.getElementById('conn-label').textContent = 'error';
+    document.getElementById('pc-list').innerHTML =
+      `<div style="font-size:11px;color:var(--red);padding:8px 0">${e.message}</div>`;
+    initMap();
+  }
+}
+
+// ── ANALOG PATH LIST ──────────────────────────────────────────────────────────
+function renderApList() {
+  const el = document.getElementById('ap-list');
+  if (!el) return;
+  if (!analogPaths.length) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--faint);padding:4px 0">no analog paths saved yet</div>';
+    return;
+  }
+  el.innerHTML = analogPaths.map(ap => {
+    const batch = ap.batch_label || '—';
+    const date  = ap.collected_at ? ap.collected_at.slice(0, 10) : '—';
+    const isSel = ap.id === selectedApId ? 'selected' : '';
+    const editHtml = ap.id === selectedApId ? `
+      <div class="ap-item__edit">
+        <div class="style-edit__row">
+          <span>label</span>
+          <input type="text" id="ap-edit-label" value="${esc(ap.batch_label || '')}"
+            onclick="event.stopPropagation()" style="flex:1;font-size:11px;font-family:var(--sans);border:1px solid rgba(245,240,232,.2);border-radius:2px;padding:3px 6px;background:rgba(255,255,255,.08);color:var(--paper);">
+        </div>
+        <div class="style-edit__row">
+          <span>color</span>
+          <input type="color" id="ap-edit-color" value="${ap.path_color || '#888888'}" onclick="event.stopPropagation()">
+        </div>
+        <div class="style-edit__row">
+          <span>weight</span>
+          <input type="range" id="ap-edit-weight" min="1" max="14" step="1" value="${ap.path_weight || 3}"
+            oninput="event.stopPropagation();document.getElementById('ap-edit-weight-out').textContent=this.value"
+            onclick="event.stopPropagation()">
+          <span id="ap-edit-weight-out">${ap.path_weight || 3}</span>
+        </div>
+        <button class="btn btn--update" onclick="event.stopPropagation();updateAnalogStyle('${ap.id}')">update</button>
+      </div>` : '';
+    return `<div class="ap-item ${isSel}" onclick="selectAnalogPath('${ap.id}')">
+      <div class="ap-item__top">
+        <div class="ap-item__top-text">
+          <div class="ap-item__batch">${esc(batch)}</div>
+          <div class="ap-item__date">${date}</div>
+        </div>
+        <button class="ap-item__del" onclick="event.stopPropagation();deleteAnalogPath('${ap.id}')">✕</button>
+      </div>
+      ${editHtml}
+    </div>`;
+  }).join('');
+}
+
+function selectAnalogPath(id) {
+  selectedApId = selectedApId === id ? null : id; // toggle off if already selected
+
+  // Remove previous highlight
+  if (apHighlightLayer) { map.removeLayer(apHighlightLayer); apHighlightLayer = null; }
+
+  if (selectedApId) {
+    const ap = analogPaths.find(a => a.id === selectedApId);
+    if (ap?.path_geojson?.coordinates?.length) {
+      try {
+        const latLngs = ap.path_geojson.coordinates.map(([lon, lat]) => [lat, lon]);
+        apHighlightLayer = L.polyline(latLngs, {
+          color: '#ff6600', weight: 5, opacity: 0.9,
+          dashArray: '8 5', lineCap: 'round',
+        }).addTo(map);
+        map.fitBounds(apHighlightLayer.getBounds(), { padding: [60, 60] });
+      } catch(e) {}
+    }
+  }
+
+  renderApList();
+}
+
+function toggleApSection() {
+  const toggle = document.getElementById('ap-toggle');
+  const body   = document.getElementById('ap-body');
+  toggle.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+async function deleteAnalogPath(id) {
+  if (!confirm('Delete this analog path? This cannot be undone.')) return;
+  try {
+    const { error } = await sb.from('analog_paths').delete().eq('id', id);
+    if (error) throw error;
+    analogPaths = analogPaths.filter(ap => ap.id !== id);
+    // Clear highlight if this was the selected path
+    if (selectedApId === id) {
+      selectedApId = null;
+      if (apHighlightLayer) { map.removeLayer(apHighlightLayer); apHighlightLayer = null; }
+    }
+    renderApList();
+    showToast('✓ analog path deleted');
+  } catch(e) {
+    showToast('Error: ' + e.message);
+  }
+}
+
+// ── UNATTRIBUTED MODE ─────────────────────────────────────────────────────────
+function toggleUnattributed() {
+  unattributedMode = !unattributedMode;
+  const btn  = document.getElementById('btn-unattr');
+  const form = document.getElementById('unattr-form');
+
+  if (unattributedMode) {
+    // Default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('unattr-date').value = today;
+
+    btn.textContent  = '✓ unattributed mode active';
+    btn.classList.add('active');
+    form.classList.add('visible');
+
+    // Deselect any postcard
+    selectedId = null;
+    renderPcList();
+    document.getElementById('selected-info').style.display = 'none';
+  } else {
+    btn.textContent  = '+ save path without postcard';
+    btn.classList.remove('active');
+    form.classList.remove('visible');
+  }
+
+  updateSaveButton();
+}
+
+// ── POSTCARD LIST ─────────────────────────────────────────────────────────────
+function renderPcList() {
+  const el = document.getElementById('pc-list');
+  if (!allPostcards.length) { el.innerHTML = '<div style="font-size:11px;color:var(--faint);padding:8px 0">no postcards</div>'; return; }
+
+  el.innerHTML = allPostcards.map(pc => {
+    const imgSrc = getImageUrl(pc);
+    const hasGeo = !!pc.path_geojson;
+    const isSelected = pc.id === selectedId ? 'selected' : '';
+    const label = pc.feeling || pc.artist_name || pc.path_label || '—';
+    return `<div class="pc-select-item ${isSelected}" onclick="selectPostcard('${pc.id}')">
+      ${imgSrc ? `<img class="pc-select-item__thumb" src="${imgSrc}" alt="" onerror="this.style.opacity=.3">` : '<div class="pc-select-item__thumb"></div>'}
+      <div style="flex:1;min-width:0">
+        <div class="pc-select-item__label">${esc(label)}</div>
+        <div class="pc-select-item__sub">${pc.source} · ${pc.status}</div>
+      </div>
+      <div class="pc-select-item__geo ${hasGeo ? 'has-geo' : 'no-geo'}">${hasGeo ? '✓' : '—'}</div>
+    </div>`;
+  }).join('');
+}
+
+function getImageUrl(pc) {
+  if (!pc.front_image_path) return null;
+  const { data } = sb.storage.from('postcards').getPublicUrl(pc.front_image_path);
+  return data?.publicUrl || null;
+}
+
+function selectPostcard(id) {
+  selectedId = id;
+
+  // Exit unattributed mode if a postcard is selected
+  if (unattributedMode) {
+    unattributedMode = false;
+    document.getElementById('btn-unattr').textContent = '+ save path without postcard';
+    document.getElementById('btn-unattr').classList.remove('active');
+    document.getElementById('unattr-form').classList.remove('visible');
+  }
+
+  renderPcList();
+
+  const pc = allPostcards.find(p => p.id === id);
+  if (!pc) return;
+
+  // Set draw color from postcard's stored color
+  if (pc.path_color) {
+    document.getElementById('draw-color').value = pc.path_color;
+  }
+
+  const infoEl = document.getElementById('selected-info');
+  const detailEl = document.getElementById('selected-detail');
+  infoEl.style.display = 'block';
+
+  const imgSrc = getImageUrl(pc);
+  detailEl.innerHTML = `
+    ${imgSrc ? `<img src="${imgSrc}" style="width:100%;border-radius:3px;margin-bottom:8px;" alt="">` : ''}
+    <div style="font-size:12px;font-weight:500;color:var(--ink);margin-bottom:4px">${esc(pc.feeling || pc.path_label || '—')}</div>
+    ${pc.artist_name ? `<div style="font-size:11px;color:var(--soft)">${esc(pc.artist_name)}</div>` : ''}
+    ${pc.path_geojson
+      ? `<div style="font-size:10px;color:var(--green);margin-top:6px;font-family:var(--mono)">✓ has existing path — drawing a new one will replace it</div>
+         <div class="style-edit">
+           <div class="style-edit__row">
+             <span>color</span>
+             <input type="color" id="pc-edit-color" value="${pc.path_color || '#c4622a'}">
+           </div>
+           <div class="style-edit__row">
+             <span>weight</span>
+             <input type="range" id="pc-edit-weight" min="1" max="14" step="1" value="${pc.path_weight || 5}" oninput="document.getElementById('pc-edit-weight-out').textContent=this.value">
+             <span id="pc-edit-weight-out">${pc.path_weight || 5}</span>
+           </div>
+           <button class="btn btn--update" onclick="updatePostcardStyle('${pc.id}')">update style</button>
+         </div>
+         <button class="btn btn--danger" style="margin-top:8px;font-size:10px;padding:5px 10px" onclick="deletePath('${pc.id}')">✕ delete this path</button>`
+      : `<div style="font-size:10px;color:var(--faint);margin-top:6px;font-family:var(--mono)">no path yet — trace it on the map</div>`}
+  `;
+
+  // Highlight existing path on map if present
+  if (pc.path_geojson) {
+    try {
+      const coords = pc.path_geojson.coordinates;
+      const latLngs = coords.map(([lon,lat]) => [lat,lon]);
+      const flash = L.polyline(latLngs, { color: '#ff6600', weight: 4, opacity: 0.8 }).addTo(map);
+      map.fitBounds(flash.getBounds(), { padding: [60,60] });
+      setTimeout(() => map.removeLayer(flash), 3000);
+    } catch(e) {}
+  }
+}
+
+// ── STYLE UPDATES ─────────────────────────────────────────────────────────────
+async function updatePostcardStyle(id) {
+  const color  = document.getElementById('pc-edit-color').value;
+  const weight = parseInt(document.getElementById('pc-edit-weight').value);
+  try {
+    const { error } = await sb.from('postcards').update({ path_color: color, path_weight: weight }).eq('id', id);
+    if (error) throw error;
+    const idx = allPostcards.findIndex(p => p.id === id);
+    if (idx >= 0) { allPostcards[idx].path_color = color; allPostcards[idx].path_weight = weight; }
+    showToast('✓ style updated');
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+async function updateAnalogStyle(id) {
+  const color  = document.getElementById('ap-edit-color').value;
+  const weight = parseInt(document.getElementById('ap-edit-weight').value);
+  const label  = document.getElementById('ap-edit-label').value.trim() || null;
+  try {
+    const { error } = await sb.from('analog_paths').update({ path_color: color, path_weight: weight, batch_label: label }).eq('id', id);
+    if (error) throw error;
+    const idx = analogPaths.findIndex(a => a.id === id);
+    if (idx >= 0) { analogPaths[idx].path_color = color; analogPaths[idx].path_weight = weight; analogPaths[idx].batch_label = label; }
+    if (apHighlightLayer) { apHighlightLayer.setStyle({ color, weight: weight + 2 }); }
+    renderApList();
+    showToast('✓ path updated');
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+// ── DELETE PATH ───────────────────────────────────────────────────────────────
+async function deletePath(id) {
+  if (!confirm('Delete the saved path for this postcard? This cannot be undone.')) return;
+  try {
+    const { error } = await sb.from('postcards').update({ path_geojson: null, path_color: null, path_weight: null }).eq('id', id);
+    if (error) throw error;
+    const idx = allPostcards.findIndex(p => p.id === id);
+    if (idx >= 0) { allPostcards[idx].path_geojson = null; allPostcards[idx].path_color = null; allPostcards[idx].path_weight = null; }
+    showToast('✓ path deleted');
+    renderPcList();
+    selectPostcard(id);
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+// ── DRAWING ───────────────────────────────────────────────────────────────────
+function startDraw() {
+  const color = document.getElementById('draw-color').value;
+  const weight = parseInt(document.getElementById('draw-weight').value);
+  map.pm.enableDraw('Line', {
+    snappable: false,
+    templineStyle: { color, weight, opacity: 0.6 },
+    hintlineStyle: { color, weight, opacity: 0.3, dashArray: '5 5' },
+    pathOptions: { color, weight, opacity: 0.85, lineCap: 'round', lineJoin: 'round' },
+  });
+}
+
+function updateDrawStyle() {
+  const w = parseInt(document.getElementById('draw-weight').value);
+  document.getElementById('weight-out').textContent = w;
+  const color = document.getElementById('draw-color').value;
+  drawnLayers.forEach(l => l.setStyle({ color, weight: w }));
+}
+
+function undoLast() {
+  if (drawnLayers.length) { map.removeLayer(drawnLayers.pop()); updatePathStatus(); }
+}
+
+function clearDrawn() {
+  drawnLayers.forEach(l => map.removeLayer(l));
+  drawnLayers = [];
+  updatePathStatus();
+}
+
+function updateSaveButton() {
+  const saveBtn = document.getElementById('save-btn');
+  const hasPath = drawnLayers.length > 0;
+  const canSave = hasPath && (selectedId || unattributedMode);
+  saveBtn.disabled = !canSave;
+  saveBtn.textContent = unattributedMode ? 'save unattributed path' : 'save path to postcard';
+}
+
+function updatePathStatus() {
+  const n = drawnLayers.reduce((s,l) => s + l.getLatLngs().length, 0);
+  const statusEl = document.getElementById('path-status');
+  const geoEl    = document.getElementById('geo-preview');
+
+  if (n > 0) {
+    statusEl.textContent = `${n} points drawn across ${drawnLayers.length} segment(s)`;
+    statusEl.style.color = 'var(--green)';
+    const geojson = buildGeoJSON();
+    geoEl.style.display = 'block';
+    geoEl.textContent = JSON.stringify(geojson, null, 2).slice(0, 500) + (JSON.stringify(geojson).length > 500 ? '\n…' : '');
+  } else {
+    statusEl.textContent = 'no path drawn yet';
+    statusEl.style.color = 'var(--faint)';
+    geoEl.style.display = 'none';
+  }
+  updateSaveButton();
+}
+
+function buildGeoJSON() {
+  const coords = [];
+  drawnLayers.forEach(l => l.getLatLngs().forEach(ll => coords.push([ll.lng, ll.lat])));
+  return { type: 'LineString', coordinates: coords };
+}
+
+// ── SAVE ──────────────────────────────────────────────────────────────────────
+async function savePath() {
+  if (!selectedId && !unattributedMode) { showToast('select a postcard or use unattributed mode'); return; }
+  if (!drawnLayers.length) { showToast('draw a path first'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'saving…';
+
+  const geojson = buildGeoJSON();
+  const color   = document.getElementById('draw-color').value;
+  const weight  = parseInt(document.getElementById('draw-weight').value);
+
+  try {
+    if (unattributedMode) {
+      // ── Unattributed save ──
+      const batchBase   = document.getElementById('unattr-batch').value.trim() || 'batch';
+      const collectedAt = document.getElementById('unattr-date').value || new Date().toISOString().split('T')[0];
+
+      // Count existing paths with the same base label to auto-index
+      const sameLabel = analogPaths.filter(ap =>
+        (ap.batch_label || '').startsWith(batchBase)
+      ).length;
+      const batchLabel = `${batchBase} · ${sameLabel + 1}`;
+
+      const { error } = await sb.from('analog_paths').insert({
+        path_geojson:        geojson,
+        path_color:          color,
+        path_weight:         weight,
+        analog_unattributed: true,
+        batch_label:         batchLabel,
+        collected_at:        collectedAt,
+      });
+      if (error) throw error;
+
+      showToast('✓ unattributed path saved');
+
+      // Update local analog paths cache and re-render list
+      const { data: freshAp } = await sb.from('analog_paths')
+        .select('id,path_geojson,path_color,path_weight,batch_label,collected_at')
+        .order('collected_at', { ascending: false });
+      if (freshAp) { analogPaths = freshAp; renderApList(); }
+
+      // Add to map as reference line with dashed style
+      const coords = geojson.coordinates.map(([lon,lat]) => [lat,lon]);
+      L.polyline(coords, { color, weight: 2, opacity: 0.4, dashArray: '6 4', lineCap: 'round' })
+        .bindTooltip(`<div class="path-tooltip">unattributed${batchLabel ? ' · ' + esc(batchLabel) : ''}</div>`, { sticky: true })
+        .addTo(map);
+
+      clearDrawn();
+      btn.textContent = 'save unattributed path';
+
+    } else {
+      // ── Postcard-linked save ──
+      const { error } = await sb.from('postcards').update({
+        path_geojson: geojson,
+        path_color:   color,
+        path_weight:  weight,
+      }).eq('id', selectedId);
+      if (error) throw error;
+
+      // Update local cache
+      const idx = allPostcards.findIndex(p => p.id === selectedId);
+      if (idx >= 0) {
+        allPostcards[idx].path_geojson = geojson;
+        allPostcards[idx].path_color   = color;
+        allPostcards[idx].path_weight  = weight;
+      }
+
+      showToast('✓ path saved to database');
+      btn.textContent = 'save path to postcard';
+      renderPcList();
+      selectPostcard(selectedId);
+
+      // Add to map as reference line
+      const coords = geojson.coordinates.map(([lon,lat]) => [lat,lon]);
+      L.polyline(coords, { color, weight: 2, opacity: 0.4, lineCap: 'round' })
+        .bindTooltip(`<div class="path-tooltip">${esc(allPostcards[idx]?.artist_name || allPostcards[idx]?.path_label || 'saved path')}</div>`, { sticky: true })
+        .addTo(map);
+
+      // Auto-advance to next postcard without a path
+      setTimeout(() => {
+        const next = allPostcards.find(p => !p.path_geojson && p.id !== selectedId);
+        if (next) { clearDrawn(); selectPostcard(next.id); }
+      }, 1000);
+    }
+
+  } catch(e) {
+    showToast('Error: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = unattributedMode ? 'save unattributed path' : 'save path to postcard';
+  }
+}
+
+// ── SCAN OVERLAY ──────────────────────────────────────────────────────────────
+function updateScan() {
+  const vis = document.getElementById('scan-vis').checked;
+  const op  = parseFloat(document.getElementById('scan-op').value);
+  scanLayer.setOpacity(vis ? op : 0);
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── KEYBOARD ──────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+  if (e.key === 'Escape') map.pm.disableDraw();
+  if (e.key === 'z' && (e.ctrlKey||e.metaKey)) { e.preventDefault(); undoLast(); }
+  if ((e.ctrlKey||e.metaKey) && e.key === 's') { e.preventDefault(); savePath(); }
+});
+
+init();
+</script>
+</body>
+</html>
